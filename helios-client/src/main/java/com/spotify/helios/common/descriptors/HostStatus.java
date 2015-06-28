@@ -30,6 +30,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -81,6 +82,7 @@ public class HostStatus extends Descriptor {
   private final Map<JobId, Deployment> jobs;
   private final Map<JobId, TaskStatus> statuses;
   private final Map<String, String> environment;
+  private final List<String> labels;
 
   /**
    * Constructor.
@@ -91,13 +93,15 @@ public class HostStatus extends Descriptor {
    * @param hostInfo The host information.
    * @param agentInfo The agent information.
    * @param environment The environment provided to the agent on it's command line.
+   * @param labels The labels assigned to the agent.
    */
   public HostStatus(@JsonProperty("jobs") final Map<JobId, Deployment> jobs,
                     @JsonProperty("statuses") final Map<JobId, TaskStatus> statuses,
                     @JsonProperty("status") final Status status,
                     @JsonProperty("hostInfo") final HostInfo hostInfo,
                     @JsonProperty("agentInfo") final AgentInfo agentInfo,
-                    @JsonProperty("environment") final Map<String, String> environment) {
+                    @JsonProperty("environment") final Map<String, String> environment,
+                    @JsonProperty("labels") final List<String> labels) {
     this.status = checkNotNull(status, "status");
     this.jobs = checkNotNull(jobs, "jobs");
     this.statuses = checkNotNull(statuses, "statuses");
@@ -106,10 +110,15 @@ public class HostStatus extends Descriptor {
     this.hostInfo = hostInfo;
     this.agentInfo = agentInfo;
     this.environment = fromNullable(environment).or(Collections.<String, String>emptyMap());
+    this.labels = fromNullable(labels).or(Collections.<String>emptyList());
   }
 
   public Map<String, String> getEnvironment() {
     return environment;
+  }
+
+  public List<String> getLabels() {
+    return labels;
   }
 
   public Status getStatus() {
@@ -146,6 +155,7 @@ public class HostStatus extends Descriptor {
     private HostInfo hostInfo;
     private AgentInfo agentInfo;
     private Map<String, String> environment;
+    private List<String> labels;
 
     public Builder setJobs(final Map<JobId, Deployment> jobs) {
       this.jobs = jobs;
@@ -177,8 +187,13 @@ public class HostStatus extends Descriptor {
       return this;
     }
 
+    public Builder setLabels(final List<String> labels) {
+      this.labels = labels;
+      return this;
+    }
+
     public HostStatus build() {
-      return new HostStatus(jobs, statuses, status, hostInfo, agentInfo, environment);
+      return new HostStatus(jobs, statuses, status, hostInfo, agentInfo, environment, labels);
     }
   }
 
@@ -211,6 +226,9 @@ public class HostStatus extends Descriptor {
     if (environment != null ? !environment.equals(that.environment) : that.environment != null) {
       return false;
     }
+    if (labels != null ? !labels.equals(that.labels) : that.labels != null) {
+      return false;
+    }
 
     return true;
   }
@@ -223,6 +241,7 @@ public class HostStatus extends Descriptor {
     result = 31 * result + (jobs != null ? jobs.hashCode() : 0);
     result = 31 * result + (statuses != null ? statuses.hashCode() : 0);
     result = 31 * result + (environment != null ? environment.hashCode() : 0);
+    result = 31 * result + (labels != null ? labels.hashCode() : 0);
     return result;
   }
 
@@ -242,6 +261,7 @@ public class HostStatus extends Descriptor {
            ", jobs=" + jobs +
            ", statuses=" + statuses +
            ", environment={" + strEnv + "}" +
+           ", labels=[" + Joiner.on(", ").join(labels) + "]" +
            '}';
   }
 }

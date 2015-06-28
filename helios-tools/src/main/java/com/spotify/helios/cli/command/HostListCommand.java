@@ -21,9 +21,11 @@
 
 package com.spotify.helios.cli.command;
 
+import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Strings;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.Futures;
@@ -59,6 +61,7 @@ import static com.spotify.helios.cli.Utils.allAsMap;
 import static com.spotify.helios.common.descriptors.HostStatus.Status.UP;
 import static java.lang.String.format;
 import static java.lang.System.currentTimeMillis;
+import static net.sourceforge.argparse4j.impl.Arguments.append;
 import static net.sourceforge.argparse4j.impl.Arguments.storeTrue;
 
 public class HostListCommand extends ControlCommand {
@@ -66,6 +69,7 @@ public class HostListCommand extends ControlCommand {
   private final Argument quietArg;
   private final Argument patternArg;
   private final Argument fullArg;
+  private final Argument labelArg;
 
   public HostListCommand(final Subparser parser) {
     super(parser);
@@ -84,6 +88,10 @@ public class HostListCommand extends ControlCommand {
     fullArg = parser.addArgument("-f")
         .action(storeTrue())
         .help("Print full host names.");
+
+    labelArg = parser.addArgument("-l", "--label")
+        .action(append())
+        .help("Include hosts that have this label");
   }
 
   @Override
@@ -108,6 +116,12 @@ public class HostListCommand extends ControlCommand {
     }
 
     final List<String> sortedHosts = natural().sortedCopy(hosts);
+    final List<String> selectedLabels = options.getList(labelArg.getDest());
+
+    if (selectedLabels != null && !selectedLabels.isEmpty() && json) {
+      System.err.println("Warning: filtering by label is not supported for JSON output. Not doing"
+          + " any filtering by label.");
+    }
 
     if (quiet) {
       if (json) {
@@ -137,8 +151,8 @@ public class HostListCommand extends ControlCommand {
         out.println(Json.asPrettyStringUnchecked(sorted));
       } else {
         final Table table = table(out);
-        table.row("HOST", "STATUS", "DEPLOYED", "RUNNING",
-                  "CPUS", "MEM", "LOAD AVG", "MEM USAGE", "OS", "HELIOS", "DOCKER");
+        table.row("HOST", "STATUS", "DEPLOYED", "RUNNING", "CPUS", "MEM", "LOAD AVG", "MEM USAGE",
+            "OS", "HELIOS", "DOCKER", "LABELS");
 
         for (final Map.Entry<String, ListenableFuture<HostStatus>> e : statuses.entrySet()) {
 
@@ -147,6 +161,16 @@ public class HostListCommand extends ControlCommand {
 
           if (s == null) {
             continue;
+          }
+
+          if (selectedLabels != null && !selectedLabels.isEmpty()) {
+            final List<String> hostLabels = Lists.newArrayList(s.getLabels());
+            hostLabels.retainAll(selectedLabels);
+
+            if (hostLabels.isEmpty()) {
+              // host doesn't have any labels that match the selected labels
+              continue;
+            }
           }
 
           final Set<TaskStatus> runningDeployedJobs = Sets.newHashSet();
@@ -199,8 +223,11 @@ public class HostListCommand extends ControlCommand {
             }
           }
 
+          final String labels = Joiner.on(", ").join(s.getLabels());
+
           table.row(formatHostname(full, host), status, s.getJobs().size(),
-                    runningDeployedJobs.size(), cpus, mem, loadAvg, memUsage, os, version, docker);
+              runningDeployedJobs.size(), cpus, mem, loadAvg, memUsage, os, version, docker,
+              labels);
         }
 
         table.print();

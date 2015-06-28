@@ -65,6 +65,7 @@ public class AgentParser extends ServiceParser {
   private Argument dnsArg;
   private Argument bindArg;
   private Argument kafkaArg;
+  private Argument labelArg;
 
   public AgentParser(final String... args) throws ArgumentParserException {
     super("helios-agent", "Spotify Helios Agent", args);
@@ -108,6 +109,7 @@ public class AgentParser extends ServiceParser {
     }
 
     final List<String> kafkaBrokers = options.getList(kafkaArg.getDest());
+    final List<String> labels = options.getList(labelArg.getDest());
 
     this.agentConfig = new AgentConfig()
         .setName(getName())
@@ -131,7 +133,8 @@ public class AgentParser extends ServiceParser {
         .setAdminPort(options.getInt(adminArg.getDest()))
         .setHttpEndpoint(httpAddress)
         .setNoHttp(options.getBoolean(noHttpArg.getDest()))
-        .setKafkaBrokers(kafkaBrokers.isEmpty() ? null : kafkaBrokers);
+        .setKafkaBrokers(kafkaBrokers.isEmpty() ? null : kafkaBrokers)
+        .setLabels(labels.isEmpty() ? null : labels);
 
     final String explicitId = options.getString(agentIdArg.getDest());
     if (explicitId != null) {
@@ -221,6 +224,11 @@ public class AgentParser extends ServiceParser {
         .action(append())
         .setDefault(new ArrayList<String>())
         .help("Kafka brokers to bootstrap with");
+
+    labelArg = parser.addArgument("--label")
+        .action(append())
+        .setDefault(new ArrayList<String>())
+        .help("labels to apply to this agent");
   }
 
   public AgentConfig getAgentConfig() {
